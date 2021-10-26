@@ -1,0 +1,42 @@
+#This code is run on Raspberry Pi and its role is to recieve the sensed data from blutooth module
+# (Rf Communicaiton Channel) and then pulish the data to the MQTT broker which is installed on Remote-
+#-Host (int his case AWS EC2 instance) which is identified by its punlic IP address
+
+# importing necessary libraries
+import paho.mqtt.publish as publish
+
+import serial
+import time
+import string
+
+
+ser=serial.Serial("/dev/rfcomm5",9600)
+ser.write(str.encode('Start\r\n')) #Writes to Serial Port (Bluetooth)
+
+while True:
+    if ser.in_waiting>0:
+        rawserial=ser.readline()
+        cookedserial=rawserial.decode('utf-8').strip('\r\n')
+        #String Processing to separate and remvove unnecessart parts of the string. 
+        stringtemp=(cookedserial.split())[3] #temperatire is in the 3rd index of the list
+        
+        tempnumber=stringtemp.replace("C","") #it removes "C" from temperature
+        print("Temperature publihsed=",tempnumber,end="    ")
+        floatTemp=float(tempnumber)
+        floatHumi=float(((cookedserial.split())[1]).replace("%",""))
+        intPhoto=int(cookedserial.split()[11])
+        floatSoil=float((cookedserial.split())[14])
+        print("Humidity Published=",floatHumi)
+ 
+        print("Photoresistor Published=",intPhoto)
+        print("Soil Published=",floatSoil)
+
+# Publishing received data to 4 sperate topics Temperature, Humidity, Light and Soil
+# Soil is measures Soil Moisture
+        publish.single("Temperature", floatTemp,hostname="34.238.242.105")
+        publish.single("Humidity", floatHumi,hostname="34.238.242.105")
+        publish.single("Light", intPhoto,hostname="34.238.242.105")
+        publish.single("Soil", floatSoil,hostname="34.238.242.105")
+    
+        print("Done")
+        
