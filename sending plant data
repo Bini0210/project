@@ -1,0 +1,99 @@
+
+//This code sets up 3 Sseors : Temperature/Humidity*DHT), Light and Soil Moisture Senor and Send the measured data to HC-05 Bluetooth Module
+//Micro controller used is Teensy 2.0
+
+#include "DHT.h" //to use DHT11 Temperature Humidity Sensor
+
+
+#define DHTPIN 21      // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT11   // DHT 11
+
+#define SensorPin 16 //Analog Pin Connected to Soil Moisture Sensor
+#define LEDPIN 11 //Pin for Teensy interal LED
+
+const int light=13; //input pin for Photoresistor
+const int power=20; //Power pin to Soli Moisture Sensor 
+
+DHT dht(DHTPIN, DHTTYPE);
+
+// Teensy 5V <--> HC-05 Vcc
+// Teensy Ground <--> HC-05 GND
+#define rxPin 7 // Teensy pin 7 <--> HC-05 Tx
+#define txPin 8 // Teensy pin 8 <--> HC-05 Rx
+//SoftwareSerial BTSerial =  SoftwareSerial(rxPin, txPin);
+float sensorValue = 0; 
+
+void setup() {
+  // Setup serial for monitor
+  Serial.begin(9600); 
+
+  // Setup DHT Sensor
+  pinMode(DHTPIN, INPUT);
+  dht.begin();
+
+  pinMode(power,OUTPUT);
+
+  // Setup Serial1 for BlueTooth
+  Serial1.begin(9600); // Default communication rate of the Bluetooth module
+ 
+}
+
+void loop() {
+  if(Serial1.available() > 0){ // Checks whether data is comming from the serial port
+    digitalWrite(LEDPIN, HIGH); 
+   
+    int value=analogRead(light); //reading the Photoresistor data
+    
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    float f = dht.readTemperature(true);
+
+    float hif = dht.computeHeatIndex(f, h);
+    float hic = dht.computeHeatIndex(t, h, false);  
+
+    Serial.print(F(" Humidity: "));
+    Serial.print(h);
+    Serial.print(F("%  Temperature: "));
+    Serial.print(t);
+    Serial.print(F("C "));
+    Serial.print(f);
+    Serial.print("  ");
+    Serial.print("Phtoresistor Value: ");
+    Serial.println(value);
+//Sending DHT and Light Data to Bluetooth Module
+    Serial1.print(F(" Humidity: "));
+    Serial1.print(h);
+    Serial1.print(F("%  Temperature: "));
+    Serial1.print(t);
+    Serial1.print(F("C "));
+    Serial1.print(f);
+    Serial1.print(F("F  Heat index: "));
+    Serial1.print(hic);
+    Serial1.print(F("C "));
+    Serial1.print(hif);
+    Serial1.print(F("F"));
+    Serial1.print(" ");
+    Serial1.print("Phtoresistor Value: ");
+    Serial1.print(value);
+    Serial1.print(" ");
+
+//Reading Soil Moisture and and stroign the average of 100 readings in sensorValue
+   digitalWrite(power,HIGH); //providing pwoer to Soil Mositure Sensor to conserve enery and avoid corrosion
+   delay(5);//delay ensuring that Soil Mosite Sensor has power before staring readinh
+   for (int i = 0; i <= 100; i++) 
+ { 
+   sensorValue = sensorValue + analogRead(SensorPin); 
+   delay(1); 
+ } 
+  sensorValue = sensorValue/100.0;
+  //Sending Soil Moisute data to Bluetooth
+   Serial.print("Soil Moisture: ");
+   Serial.println(sensorValue); 
+   Serial1.print("Soil Moisture: ");
+   Serial1.println(sensorValue);
+    //delay(1000);
+    digitalWrite(power,LOW);
+    digitalWrite(LEDPIN, LOW);
+    delay(1800000); //measuring data  every 30 minutes
+ }
+}
