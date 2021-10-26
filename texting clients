@@ -1,0 +1,46 @@
+#This code is run on Raspberry Pi and will subscribe to the published data by MQTT broker on remote host(AWS)
+#It will listen to the published data for each topic
+#It will use the Twillo applicaiton to send text messages to the registered phone number once the Temperature
+#exceeds 27 degrees or Soil Moisture falls below 300 Value.
+
+import paho.mqtt.client as mqtt
+from twilio.rest import Client
+
+account_sid ='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'    #provided by Tiwllo app
+auth_token ='BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'    #provided by Twillo app
+
+
+
+def on_connect(client, userdata, flags, rc): # func for making connection
+  print("Connected to MQTT")
+  print("Connection returned result: " + str(rc) )
+  client.subscribe("Temperature")
+  client.subscribe("Light")
+  client.subscribe("Soil")
+  
+def on_message(client, userdata, msg): # Func for Sending msg
+  print(msg.topic+" "+str(msg.payload))
+
+  if (msg.topic == "Temperature"):
+      if (float(msg.payload))>27:
+          sms2 = Client(account_sid, auth_token)
+          message = sms2.api.account.messages.create(
+            to="+61234567890", #Registered phone number with Twillo
+            from_="+13185219622",
+            body="It is too hot- Turn on Air Conditioner")
+      #else:
+          #ser.write(str.encode('Temp Low'))
+  if (msg.topic == "Soil"):
+      if (float(msg.payload))<300:
+          #ser.write(str.encode('Soil High'))
+          sms3 = Client(account_sid, auth_token)
+          message = sms3.api.account.messages.create(
+           to="+61234567890", #Registered phone number with Twillo
+            from_="+13185219622",
+            body="The Soil Moisture is Low- Time to Water")
+  
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect("Public IP Address of Remote Host", 1883, 60) 
+client.loop_forever()
